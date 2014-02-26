@@ -14,6 +14,22 @@ def test_blockdev_flushbufs(vm, params):
     4) Check file on guest
     """
 
+    add_ref = params.get("guestfs_add_ref", "disk")
+    run_mode = params.get("guestfs_run_mode", "interactive")
+    readonly = params.get("guestfs_add_readonly", "no")
+
+    if run_mode == "interactive":
+        if add_ref == "disk":
+            pass
+        elif add_ref == "domain":
+            pass
+        else:
+            raise error.TestFail("Invalid parameter guestfs_add_ref = %s" % add_ref)
+    elif run_mode == "remote":
+        pass
+    else:
+        raise error.TestFail("Invalid parameter guestfs_run_mode = %s" % run_mode)
+
     params["image_path"] = utils_test.libguestfs.preprocess_image(params)
 
     if params.get("image_path") is None:
@@ -27,32 +43,25 @@ def test_blockdev_flushbufs(vm, params):
     gf.close_session()
 
     gf = utils_test.libguestfs.GuestfishTools(params)
-    image_path = params.get("image_path")
-    gf.add_drive(image_path)
+    if add_ref == "disk":
+        image_path = params.get("image_path")
+        gf.add_drive_opts(image_path, readonly=readonly)
+    elif add_ref == "domain":
+        vm_name = params.get("main_vm")
+        gf.add_domain(vm_name, readonly=readonly)
     gf.run()
     pv_name = params.get("pv_name")
     gf_result = gf.blockdev_flushbufs(pv_name)
     logging.debug(gf_result)
+    gf.do_mount("/")
+    gf.touch("/test")
+    gf.ll("/")
     if gf_result.exit_status:
         gf.close_session()
         raise error.TestFail("blockdev_flushbufs failed.")
     logging.info("Get readonly status successfully.")
     gf.close_session()
 
-    add_ref = params.get("guestfs_add_ref", "disk")
-    run_mode = params.get("guestfs_run_mode", "interactive")
-
-    if run_mode == "interactive":
-        if add_ref == "disk":
-            pass
-        elif add_ref == "remote":
-            pass
-        else:
-            raise error.TestFail("Invalid parameter guestfs_add_ref = %s" % add_ref)
-    elif run_mode == "remote":
-        pass
-    else:
-        raise error.TestFail("Invalid parameter guestfs_run_mode = %s" % run_mode)
 
 def image_copy(params):
     image = '%s.%s' % (params['image_name'], params['image_format'])
