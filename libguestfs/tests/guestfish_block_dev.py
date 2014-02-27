@@ -18,21 +18,8 @@ def test_blockdev_flushbufs(vm, params):
     run_mode = params.get("guestfs_run_mode", "interactive")
     readonly = params.get("guestfs_add_readonly", "no")
 
-    if run_mode == "interactive":
-        if add_ref == "disk":
-            pass
-        elif add_ref == "domain":
-            pass
-        else:
-            raise error.TestFail("Invalid parameter guestfs_add_ref = %s" % add_ref)
-    elif run_mode == "remote":
-        pass
-    else:
-        raise error.TestFail("Invalid parameter guestfs_run_mode = %s" % run_mode)
-
     params["image_path"] = utils_test.libguestfs.preprocess_image(params)
-
-    if params.get("image_path") is None:
+    if not params.get("image_path"):
         raise error.TestFail("Image could not be created for some reason.")
 
     gf = utils_test.libguestfs.GuestfishTools(params)
@@ -40,25 +27,24 @@ def test_blockdev_flushbufs(vm, params):
     if creates is False:
         gf.close_session()
         raise error.TestFail(createo)
-    gf.close_session()
 
-    gf = utils_test.libguestfs.GuestfishTools(params)
     if add_ref == "disk":
         image_path = params.get("image_path")
         gf.add_drive_opts(image_path, readonly=readonly)
     elif add_ref == "domain":
         vm_name = params.get("main_vm")
         gf.add_domain(vm_name, readonly=readonly)
+
     gf.run()
     pv_name = params.get("pv_name")
     gf_result = gf.blockdev_flushbufs(pv_name)
     logging.debug(gf_result)
-    gf.do_mount("/")
-    gf.touch("/test")
-    gf.ll("/")
     if gf_result.exit_status:
         gf.close_session()
         raise error.TestFail("blockdev_flushbufs failed.")
+    gf.do_mount("/")
+    gf.touch("/test")
+    gf.ll("/")
     logging.info("Get readonly status successfully.")
     gf.close_session()
 
@@ -102,8 +88,6 @@ def run(test, params, env):
     partition_types = params.get("partition_types")
     fs_types = params.get("fs_types")
     image_formats = params.get("image_formats")
-
-#    image_copy(params)
 
     for image_format in image_formats.split(" "):
         params["image_format"] = image_format
